@@ -27,11 +27,11 @@ public class Carta {
         this.valor = valor;
     }
 
-    private Cor getCor() {
+    public Cor getCor() {
         return cor;
     }
 
-    private Valor getValor() {
+    public Valor getValor() {
         return valor;
     }
 

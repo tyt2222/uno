@@ -11,7 +11,7 @@ public class Jogador {
     private String nome;
     private List<Carta> mao;
 
-    public Jogador(String nome, List<Carta> mao) {
+    public Jogador(String nome) {
         setNome(nome);
         this.mao = new ArrayList<>();
     }
