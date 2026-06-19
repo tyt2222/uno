@@ -15,14 +15,12 @@ public class Uno {
     public List<Carta> descarte;
     public List<Jogador> jogadores;
     public int turnoAtual;
-    public Scanner scanner;
     public final int QTD_CARTAS = 7;
 
-    public Uno() {
+    public Uno(List<Jogador> jogadoresConectados) {
         baralho = new ArrayList<>();
         descarte = new ArrayList<>();
-        jogadores = new ArrayList<>();
-        scanner = new Scanner(System.in);
+        jogadores = jogadoresConectados;
         turnoAtual = 0;
         inicializarJogo();
     }
@@ -37,9 +35,6 @@ public class Uno {
         }
 
         Collections.shuffle(baralho);
-
-        jogadores.add(new Jogador("Jogador 1"));
-        jogadores.add(new Jogador("Jogador 2"));
 
         for (Jogador j : jogadores) {
             for (int i = 0; i < QTD_CARTAS; i++) {
@@ -67,43 +62,90 @@ public class Uno {
         return topo.getCor() == jogada.getCor() || topo.getValor() == jogada.getValor();
     }
 
+    public void broadcast(String mensagem) {
+        for (Jogador j : jogadores) {
+            j.enviarMensagem(mensagem);
+        }
+    }
+
     public void jogar() {
         boolean fim = false;
+        String ultimaJogada = "O jogo comecou!";
+        
+        broadcast("\n=== JOGO INICIADO ===");
 
         while (!fim) {
             Jogador atual = jogadores.get(turnoAtual % jogadores.size());
             Carta topo = descarte.get(descarte.size() - 1);
 
-            System.out.println("\nTurno: " + atual.getNome());
-            System.out.println("Pilha: " + topo);
-            System.out.println("Mao: ");
-
-            for (int i = 0; i < atual.getMao().size(); i++) {
-                System.out.println(i + ": " + atual.getMao().get(i));
+            for (Jogador j : jogadores) {
+                if (j != atual) {
+                    StringBuilder aguarde = new StringBuilder();
+                    for (int k = 0; k < 50; k++) {
+                        aguarde.append("\n");
+                    }
+                    aguarde.append("======================================\n");
+                    aguarde.append("PILHA: ").append(topo).append("\n");
+                    aguarde.append("JOGADA DO OPONENTE: ").append(ultimaJogada).append("\n");
+                    aguarde.append("======================================\n\n");
+                    aguarde.append("Aguarde o turno do ").append(atual.getNome()).append("...\n");
+                    j.enviarMensagem(aguarde.toString());
+                }
             }
 
-            System.out.print("Indice ou -1 para comprar: ");
-            int escolha = scanner.nextInt();
+            StringBuilder tela = new StringBuilder();
+            
+            for (int k = 0; k < 50; k++) {
+                tela.append("\n");
+            }
+            
+            tela.append("======================================\n");
+            tela.append("PILHA: ").append(topo).append("\n");
+            tela.append("JOGADA DO OPONENTE: ").append(ultimaJogada).append("\n");
+            tela.append("======================================\n\n");
+            
+            tela.append("Suas Cartas:\n");
+
+            for (int i = 0; i < atual.getMao().size(); i++) {
+                tela.append(String.format("[%d] %-14s", i, atual.getMao().get(i).toString()));
+                
+                if ((i + 1) % 3 == 0) {
+                    tela.append("\n");
+                } else if (i != atual.getMao().size() - 1) {
+                    tela.append(" |  ");
+                }
+            }
+            if (atual.getMao().size() % 3 != 0) {
+                tela.append("\n");
+            }
+
+            tela.append("\nNumero da Carta ou -1 para comprar: ");
+            
+            atual.enviarMensagem(tela.toString());
+            
+            int escolha = atual.receberJogada();
 
             if (escolha == -1) {
                 atual.getMao().add(comprarCarta());
-                System.out.println("Comprou uma carta");
+                ultimaJogada = atual.getNome() + " comprou uma carta.";
             } else if (escolha >= 0 && escolha < atual.getMao().size()) {
                 Carta cartaJogada = atual.getMao().get(escolha);
 
                 if (jogadaValida(topo, cartaJogada)) {
                     descarte.add(atual.getMao().remove(escolha));
-                    System.out.println("Jogou: " + cartaJogada);
+                    ultimaJogada = atual.getNome() + " jogou " + cartaJogada;
 
                     if (atual.getMao().isEmpty()) {
-                        System.out.println(atual.getNome() + "Venceu");
+                        broadcast("\n=== " + atual.getNome() + " Venceu! ===");
                         fim = true;
                     }
                 } else {
-                    System.out.println("Invalido");
+                    atual.enviarMensagem("Jogada Invalida!\n");
+                    turnoAtual--;
                 }
             } else {
-                System.out.println("Invalido");
+                atual.enviarMensagem("Opcao Invalida!\n");
+                turnoAtual--;
             }
 
             turnoAtual++;
