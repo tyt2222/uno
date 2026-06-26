@@ -85,7 +85,10 @@ public class Uno {
                         aguarde.append("\n");
                     }
                     aguarde.append("======================================\n");
-                    aguarde.append("PILHA: ").append(topo).append("\n");
+                    aguarde.append("PILHA:\n");
+                    for (String line : topo.getAsciiLines()) {
+                        aguarde.append(line).append("\n");
+                    }
                     aguarde.append("JOGADA DO OPONENTE: ").append(ultimaJogada).append("\n");
                     aguarde.append("======================================\n\n");
                     aguarde.append("Aguarde o turno do ").append(atual.getNome()).append("...\n");
@@ -100,23 +103,37 @@ public class Uno {
             }
             
             tela.append("======================================\n");
-            tela.append("PILHA: ").append(topo).append("\n");
+            tela.append("PILHA:\n");
+            for (String line : topo.getAsciiLines()) {
+                tela.append(line).append("\n");
+            }
             tela.append("JOGADA DO OPONENTE: ").append(ultimaJogada).append("\n");
             tela.append("======================================\n\n");
             
             tela.append("Suas Cartas:\n");
 
-            for (int i = 0; i < atual.getMao().size(); i++) {
-                tela.append(String.format("[%d] %-14s", i, atual.getMao().get(i).toString()));
+            int cartasPorLinha = 5;
+            for (int i = 0; i < atual.getMao().size(); i += cartasPorLinha) {
+                int limite = Math.min(i + cartasPorLinha, atual.getMao().size());
+                List<Carta> linhaCartas = atual.getMao().subList(i, limite);
                 
-                if ((i + 1) % 3 == 0) {
+                for (int linha = 0; linha < 5; linha++) {
+                    for (Carta c : linhaCartas) {
+                        tela.append(c.getAsciiLines()[linha]).append("   ");
+                    }
                     tela.append("\n");
-                } else if (i != atual.getMao().size() - 1) {
-                    tela.append(" |  ");
                 }
-            }
-            if (atual.getMao().size() % 3 != 0) {
-                tela.append("\n");
+                
+                for (int j = i; j < limite; j++) {
+                    String idx = "[" + j + "]";
+                    int espacos = (11 - idx.length()) / 2;
+                    StringBuilder pad = new StringBuilder();
+                    for(int p = 0; p < espacos; p++) pad.append(" ");
+                    tela.append(pad).append(idx).append(pad);
+                    if ((pad.length() * 2 + idx.length()) < 11) tela.append(" ");
+                    tela.append("   ");
+                }
+                tela.append("\n\n");
             }
 
             tela.append("\nNumero da Carta ou -1 para comprar: ");
