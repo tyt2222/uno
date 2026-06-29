@@ -14,6 +14,7 @@ public class Uno {
     public List<Carta> baralho;
     public List<Carta> descarte;
     public List<Jogador> jogadores;
+    public List<String> historicoJogadas;
     public int turnoAtual;
     public final int QTD_CARTAS = 7;
 
@@ -21,6 +22,7 @@ public class Uno {
         baralho = new ArrayList<>();
         descarte = new ArrayList<>();
         jogadores = jogadoresConectados;
+        historicoJogadas = new ArrayList<>();
         turnoAtual = 0;
         inicializarJogo();
     }
@@ -70,8 +72,9 @@ public class Uno {
 
     public void jogar() {
         boolean fim = false;
-        String ultimaJogada = "O jogo comecou!";
-        
+        historicoJogadas.clear();
+        adicionarHistoricoELog("O jogo comecou!");
+
         broadcast("\n=== JOGO INICIADO ===");
 
         while (!fim) {
@@ -80,80 +83,27 @@ public class Uno {
 
             for (Jogador j : jogadores) {
                 if (j != atual) {
-                    StringBuilder aguarde = new StringBuilder();
-                    for (int k = 0; k < 50; k++) {
-                        aguarde.append("\n");
-                    }
-                    aguarde.append("======================================\n");
-                    aguarde.append("PILHA:\n");
-                    for (String line : topo.getAsciiLines()) {
-                        aguarde.append(line).append("\n");
-                    }
-                    aguarde.append("JOGADA DO OPONENTE: ").append(ultimaJogada).append("\n");
-                    aguarde.append("======================================\n\n");
-                    aguarde.append("Aguarde o turno do ").append(atual.getNome()).append("...\n");
-                    j.enviarMensagem(aguarde.toString());
+                    j.enviarMensagem(obterTelaPartida(j, atual, topo, historicoJogadas));
                 }
             }
 
-            StringBuilder tela = new StringBuilder();
-            
-            for (int k = 0; k < 50; k++) {
-                tela.append("\n");
-            }
-            
-            tela.append("======================================\n");
-            tela.append("PILHA:\n");
-            for (String line : topo.getAsciiLines()) {
-                tela.append(line).append("\n");
-            }
-            tela.append("JOGADA DO OPONENTE: ").append(ultimaJogada).append("\n");
-            tela.append("======================================\n\n");
-            
-            tela.append("Suas Cartas:\n");
+            atual.enviarMensagem(obterTelaPartida(atual, atual, topo, historicoJogadas));
 
-            int cartasPorLinha = 5;
-            for (int i = 0; i < atual.getMao().size(); i += cartasPorLinha) {
-                int limite = Math.min(i + cartasPorLinha, atual.getMao().size());
-                List<Carta> linhaCartas = atual.getMao().subList(i, limite);
-                
-                for (int linha = 0; linha < 5; linha++) {
-                    for (Carta c : linhaCartas) {
-                        tela.append(c.getAsciiLines()[linha]).append("   ");
-                    }
-                    tela.append("\n");
-                }
-                
-                for (int j = i; j < limite; j++) {
-                    String idx = "[" + j + "]";
-                    int espacos = (11 - idx.length()) / 2;
-                    StringBuilder pad = new StringBuilder();
-                    for(int p = 0; p < espacos; p++) pad.append(" ");
-                    tela.append(pad).append(idx).append(pad);
-                    if ((pad.length() * 2 + idx.length()) < 11) tela.append(" ");
-                    tela.append("   ");
-                }
-                tela.append("\n\n");
-            }
-
-            tela.append("\nNumero da Carta ou -1 para comprar: ");
-            
-            atual.enviarMensagem(tela.toString());
-            
             int escolha = atual.receberJogada();
 
             if (escolha == -1) {
                 atual.getMao().add(comprarCarta());
-                ultimaJogada = atual.getNome() + " comprou uma carta.";
+                adicionarHistoricoELog(atual.getNome() + " comprou uma carta.");
             } else if (escolha >= 0 && escolha < atual.getMao().size()) {
                 Carta cartaJogada = atual.getMao().get(escolha);
 
                 if (jogadaValida(topo, cartaJogada)) {
                     descarte.add(atual.getMao().remove(escolha));
-                    ultimaJogada = atual.getNome() + " jogou " + cartaJogada;
+                    adicionarHistoricoELog(atual.getNome() + " jogou " + cartaJogada);
 
                     if (atual.getMao().isEmpty()) {
                         broadcast("\n=== " + atual.getNome() + " Venceu! ===");
+                        adicionarHistoricoELog(atual.getNome() + " venceu o jogo.");
                         fim = true;
                     }
                 } else {
@@ -168,6 +118,162 @@ public class Uno {
             turnoAtual++;
         }
 
+    }
+
+    public String obterTelaPartida(Jogador j, Jogador atual, Carta topo, List<String> historico) {
+        StringBuilder sb = new StringBuilder();
+        for (int k = 0; k < 50; k++) {
+            sb.append("\n");
+        }
+
+        List<String> colEsquerda = new ArrayList<>();
+        colEsquerda.add("Suas Cartas:");
+        colEsquerda.add("");
+
+        List<Carta> mao = j.getMao();
+        if (mao.isEmpty()) {
+            colEsquerda.add("(Sem cartas)");
+        } else {
+            int cartasPorLinha = 4;
+            for (int i = 0; i < mao.size(); i += cartasPorLinha) {
+                int limite = Math.min(i + cartasPorLinha, mao.size());
+                List<Carta> linhaCartas = mao.subList(i, limite);
+
+                for (int linha = 0; linha < 5; linha++) {
+                    StringBuilder sbLinha = new StringBuilder();
+                    for (Carta c : linhaCartas) {
+                        sbLinha.append(c.getAsciiLines()[linha]).append("   ");
+                    }
+                    colEsquerda.add(sbLinha.toString());
+                }
+
+                StringBuilder sbIndices = new StringBuilder();
+                for (int idx = i; idx < limite; idx++) {
+                    String label = "[" + idx + "]";
+                    int espacos = (11 - label.length()) / 2;
+                    StringBuilder pad = new StringBuilder();
+                    for (int p = 0; p < espacos; p++) {
+                        pad.append(" ");
+                    }
+                    sbIndices.append(pad).append(label).append(pad);
+                    if ((pad.length() * 2 + label.length()) < 11) {
+                        sbIndices.append(" ");
+                    }
+                    sbIndices.append("   ");
+                }
+                colEsquerda.add(sbIndices.toString());
+                colEsquerda.add("");
+            }
+        }
+
+        List<String> colDireita = new ArrayList<>();
+        colDireita.add("PILHA:");
+        colDireita.add("");
+        for (String line : topo.getAsciiLines()) {
+            colDireita.add(line);
+        }
+        colDireita.add("");
+        colDireita.add("HISTORICO DE JOGADAS:");
+
+        if (!historico.isEmpty()) {
+            // Newest play is shown on top (normal color)
+            String maisRecente = historico.get(historico.size() - 1);
+            colDireita.add(maisRecente);
+
+            // Past plays are shown below in reverse chronological order (dark gray)
+            int count = 0;
+            for (int idx = historico.size() - 2; idx >= 0 && count < 4; idx--) {
+                String jogada = historico.get(idx);
+                colDireita.add("\u001B[1;30m" + jogada + Cor.RESET);
+                count++;
+            }
+        }
+
+        List<String> combined = combinarColunas(colEsquerda, colDireita, "   │   ");
+        for (String line : combined) {
+            sb.append(line).append("\n");
+        }
+
+        sb.append("\n");
+        if (j == atual) {
+            sb.append("Numero da Carta ou -1 para comprar: ");
+        } else {
+            sb.append("Aguarde o turno do ").append(atual.getNome()).append("...\n");
+        }
+
+        return sb.toString();
+    }
+
+    private void logAcao(String acao) {
+        try {
+            java.net.URL classUrl = Uno.class.getResource("Uno.class");
+            java.io.File logFile = null;
+            if (classUrl != null && classUrl.getProtocol().equals("file")) {
+                java.io.File classFile = new java.io.File(classUrl.toURI());
+                logFile = new java.io.File(classFile.getParentFile(), "log.txt");
+            } else {
+                logFile = new java.io.File("src/uno/log.txt");
+            }
+            if (logFile.getParentFile() != null) {
+                logFile.getParentFile().mkdirs();
+            }
+            try (java.io.FileWriter fw = new java.io.FileWriter(logFile, true); java.io.PrintWriter pw = new java.io.PrintWriter(fw)) {
+                pw.println(new java.util.Date() + " - " + acao);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void adicionarHistoricoELog(String acao) {
+        historicoJogadas.add(acao);
+        logAcao(acao);
+    }
+
+    public static int getVisualLength(String s) {
+        if (s == null) {
+            return 0;
+        }
+        return s.replaceAll("\\u001B\\[[;\\d]*m", "").length();
+    }
+
+    public static String padRightVisual(String s, int width) {
+        int visualLen = getVisualLength(s);
+        int diff = width - visualLen;
+        if (diff <= 0) {
+            return s;
+        }
+        StringBuilder sb = new StringBuilder(s);
+        for (int i = 0; i < diff; i++) {
+            sb.append(" ");
+        }
+        return sb.toString();
+    }
+
+    public static List<String> combinarColunas(List<String> colEsquerda, List<String> colDireita, String separador) {
+        int maxLines = Math.max(colEsquerda.size(), colDireita.size());
+        List<String> resultado = new ArrayList<>();
+
+        int maxVisualWidth = 0;
+        for (String s : colEsquerda) {
+            int len = getVisualLength(s);
+            if (len > maxVisualWidth) {
+                maxVisualWidth = len;
+            }
+        }
+
+        if (maxVisualWidth < 40) {
+            maxVisualWidth = 40;
+        }
+
+        for (int i = 0; i < maxLines; i++) {
+            String esq = i < colEsquerda.size() ? colEsquerda.get(i) : "";
+            String dir = i < colDireita.size() ? colDireita.get(i) : "";
+
+            String esqPadded = padRightVisual(esq, maxVisualWidth);
+            resultado.add(esqPadded + separador + dir);
+        }
+        return resultado;
     }
 
 }
